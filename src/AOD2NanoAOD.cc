@@ -14,6 +14,7 @@
 
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
+#include "FWCore/ServiceRegistry/interface/Service.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
 #include "DataFormats/Common/interface/Ref.h"
 #include "FWCore/Framework/interface/ESHandle.h"
@@ -45,6 +46,8 @@
 
 #include "DataFormats/JetReco/interface/CaloJet.h"
 #include "DataFormats/BTauReco/interface/JetTag.h"
+#include "DataFormats/JetReco/interface/PFJet.h"
+#include "DataFormats/PatCandidates/interface/Jet.h"
 
 #include "DataFormats/TauReco/interface/PFTau.h"
 #include "DataFormats/TauReco/interface/PFTauDiscriminator.h"
@@ -62,6 +65,18 @@
 #include "FWCore/Common/interface/TriggerNames.h"
 #include "FWCore/Common/interface/TriggerResultsByName.h"
 #include "FWCore/ParameterSet/interface/Registry.h"
+
+#include "CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h"
+#include "CondFormats/JetMETObjects/interface/FactorizedJetCorrector.h"
+#include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
+#include "CondFormats/JetMETObjects/interface/SimpleJetCorrector.h"
+#include "CondFormats/JetMETObjects/interface/SimpleJetCorrectionUncertainty.h"
+#include "CondFormats/JetMETObjects/src/JetCorrectionUncertainty.cc"
+#include "CondFormats/JetMETObjects/src/FactorizedJetCorrector.cc"
+#include "CondFormats/JetMETObjects/src/JetCorrectorParameters.cc"
+#include "CondFormats/JetMETObjects/src/SimpleJetCorrector.cc"
+#include "CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty.cc"
+#include <boost/shared_ptr.hpp>
 
 const static std::vector<std::string> interestingTriggers = {
     "HLT_IsoMu24_eta2p1",
@@ -123,6 +138,10 @@ private:
   virtual void endJob();
   bool providesGoodLumisection(const edm::Event &iEvent);
   bool isData;
+  std::vector<std::string> jecPayloadNames_;
+  std::string              jecUncName_;
+  boost::shared_ptr<JetCorrectionUncertainty> jecUnc_;
+  boost::shared_ptr<FactorizedJetCorrector> jec_;
 
   TTree *tree;
 
@@ -253,7 +272,7 @@ private:
 
   // Jets
   const static int max_jet = 1000;
-  UInt_t value_jet_n;
+  int value_jet_n;
   float value_jet_pt[max_jet];
   float value_jet_eta[max_jet];
   float value_jet_phi[max_jet];
@@ -263,8 +282,10 @@ private:
 
   // Corrected + Smeared Jets                                                                                                                             
   const static int max_corr_jet = 1000;
-  UInt_t value_corr_jet_n;
+  int value_corr_jet_n;
   float value_corr_jet_pt[max_jet];
+  float value_corr_jet_ptUp[max_jet];
+  float value_corr_jet_ptDown[max_jet];
   float value_corr_jet_eta[max_jet];
   float value_corr_jet_phi[max_jet];
   float value_corr_jet_mass[max_jet];
@@ -283,7 +304,22 @@ private:
 };
 
 AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig)
-        : isData(iConfig.getParameter<bool>("isData")) {
+  : isData(iConfig.getParameter<bool>("isData")),
+  jecPayloadNames_( iConfig.getParameter<std::vector<std::string> >("jecPayloadNames") ), // JEC level payloads                            
+  jecUncName_( iConfig.getParameter<std::string>("jecUncName") )                          // JEC uncertainties                               
+  {
+   //Get the factorized jet corrector parameters.                                                                                                    
+  std::vector<JetCorrectorParameters> vPar;
+  for ( std::vector<std::string>::const_iterator payloadBegin = jecPayloadNames_.begin(),
+    payloadEnd = jecPayloadNames_.end(), ipayload = payloadBegin; ipayload != payloadEnd; ++ipayload ) {
+    JetCorrectorParameters pars(*ipayload);
+    vPar.push_back(pars);
+    }
+
+  // Make the FactorizedJetCorrector and Uncertainty                                                                                              
+  jec_ = boost::shared_ptr<FactorizedJetCorrector> ( new FactorizedJetCorrector(vPar) );
+  jecUnc_ = boost::shared_ptr<JetCorrectionUncertainty>( new JetCorrectionUncertainty(jecUncName_) );
+	
   edm::Service<TFileService> fs;
 
   tree = fs->make<TTree>("Events", "Events");
@@ -403,13 +439,15 @@ AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig)
   tree->Branch("Jet_btag", value_jet_btag, "Jet_btag[nJet]/F");
 
   // Corrected Jets                                                                                                                                       
-  tree->Branch("nCorrJet", &value_jet_n, "ncJet/i");
-  tree->Branch("CorrJet_pt", value_jet_pt, "cJet_pt[nJet]/F");
-  tree->Branch("CorrJet_eta", value_jet_eta, "cJet_eta[nJet]/F");
-  tree->Branch("CorrJet_phi", value_jet_phi, "cJet_phi[nJet]/F");
-  tree->Branch("CorrJet_mass", value_jet_mass, "cJet_mass[nJet]/F");
-  tree->Branch("CorrJet_puId", value_jet_puid, "cJet_puId[nJet]/O");
-  tree->Branch("CorrJet_btag", value_jet_btag, "cJet_btag[nJet]/F");
+  tree->Branch("nCorrJet", &value_corr_jet_n, "ncJet/i");
+  tree->Branch("CorrJet_pt", value_corr_jet_pt, "cJet_pt[nJet]/F");
+  tree->Branch("CorrJet_ptUp", value_corr_jet_ptUp, "cJet_pt[nJet]/F");
+  tree->Branch("CorrJet_ptDown", value_corr_jet_ptDown, "cJet_pt[nJet]/F");
+  tree->Branch("CorrJet_eta", value_corr_jet_eta, "cJet_eta[nJet]/F");
+  tree->Branch("CorrJet_phi", value_corr_jet_phi, "cJet_phi[nJet]/F");
+  tree->Branch("CorrJet_mass", value_corr_jet_mass, "cJet_mass[nJet]/F");
+  tree->Branch("CorrJet_puId", value_corr_jet_puid, "cJet_puId[nJet]/O");
+  tree->Branch("CorrJet_btag", value_corr_jet_btag, "cJet_btag[nJet]/F");
 
   // Generator particles
   if (!isData) {
@@ -860,21 +898,44 @@ void AOD2NanoAOD::analyze(const edm::Event &iEvent,
   }
 
   // Corrected Jets
-  Handle<PFJetCollection> corr_jets;
-  iEvent.getByLabel(InputTag("ak5PFCorrectedJetsSmeared"), corr_jets);
   //Handle<JetTagCollection> btags;
   //iEvent.getByLabel(InputTag("combinedSecondaryVertexBJetTags"), btags);
-
+  // Make the FactorizedJetCorrector and Uncertainty
   //const float jet_min_pt = 15;
   value_corr_jet_n = 0;
   std::vector<PFJet> selectedCorrJets;
-  for (auto it = corr_jets->begin(); it != corr_jets->end(); it++) {
+  for (auto it = jets->begin(); it != jets->end(); it++) {
+    reco::Candidate::LorentzVector uncorrJet;
+    pat::Jet const * pJet = dynamic_cast<pat::Jet const *>( &*it );
+    if ( pJet != 0 ) {
+      uncorrJet = pJet->correctedP4(0);
+    } 
+    else {
+      uncorrJet = it->p4();
+    }
+    jec_->setJetEta( uncorrJet.eta() );
+    jec_->setJetPt ( uncorrJet.pt() );
+    jec_->setJetE  ( uncorrJet.energy() );
+    jec_->setJetA  ( it->jetArea() );
+    jec_->setRho   ( *(rhoHandle.product()) );
+    jec_->setNPV   ( vertices->size() );
+    double corr = jec_->getCorrection();
+    // Access the "scale up" uncertainty (+1)
+    jecUnc_->setJetEta( uncorrJet.eta() );
+    jecUnc_->setJetPt( corr * uncorrJet.pt() );
+    double corrUp = corr * (1 + fabs(jecUnc_->getUncertainty(1)));
+    // Access the "scale down" uncertainty (-1)
+    jecUnc_->setJetEta( uncorrJet.eta() );
+    jecUnc_->setJetPt( corr * uncorrJet.pt() );
+    double corrDown = corr * ( 1 - fabs(jecUnc_->getUncertainty(-1)) );
     if (it->pt() > jet_min_pt) {
       selectedCorrJets.emplace_back(*it);
-      value_corr_jet_pt[value_jet_n] = it->pt();
-      value_corr_jet_eta[value_jet_n] = it->eta();
-      value_corr_jet_phi[value_jet_n] = it->phi();
-      value_corr_jet_mass[value_jet_n] = it->mass();
+      value_corr_jet_pt[value_jet_n] = corr * uncorrJet.pt();
+      value_corr_jet_ptUp[value_jet_n] = corrUp * uncorrJet.pt();
+      value_corr_jet_ptDown[value_jet_n] = corrDown * uncorrJet.pt();
+      value_corr_jet_eta[value_jet_n] = uncorrJet.eta();
+      value_corr_jet_phi[value_jet_n] = uncorrJet.phi();
+      value_corr_jet_mass[value_jet_n] = uncorrJet.mass();
       //value_corr_jet_puid[value_jet_n] = it->emEnergyFraction() > 0.01 && it->n90() > 1;
       value_corr_jet_btag[value_jet_n] = btags->operator[](it - jets->begin()).second;
       value_corr_jet_n++;

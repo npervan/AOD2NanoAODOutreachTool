@@ -34,23 +34,6 @@ process.source = cms.Source(
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 process.GlobalTag.globaltag = "FT_R_53_V18::All"
 
-process.load('JetMETCorrections.Configuration.DefaultJEC_cff')
-process.load('RecoJets.Configuration.RecoPFJets_cff')
-process.ak5PFJets.doAreaFastjet = True
-
-process.ak5PFchsCorrectedJets = cms.EDProducer('CorrectedPFJetProducer',
-        src = cms.InputTag("ak5CaloJets"),
-        correctors  = cms.VInputTag('ak5PFCHSL1FastL2L3Corrector')
-        )
-
-process.ak5PFchsCorrectedJetsSmeared = cms.EDProducer('SmearedPFJetProducer',
-        src = cms.InputTag('ak5PFchsCorrectedJets'),
-        enabled = cms.bool(True),
-        rho = cms.InputTag("fixedGridRhoFastjetAll"),
-        algo = cms.string('AK5PFchs'),
-        algopt = cms.string('AK5PFchs_pt')
-        )
-
 # Apply JSON file with lumi mask (needs to be done after the process.source definition)
 goodJSON = "data/Cert_190456-208686_8TeV_22Jan2013ReReco_Collisions12_JSON.txt"
 myLumis = LumiList.LumiList(filename=goodJSON).getCMSSWString().split(",")
@@ -61,8 +44,19 @@ process.source.lumisToProcess.extend(myLumis)
 # Number of events to be skipped (0 by default)
 process.source.skipEvents = cms.untracked.uint32(0)
 
+jecLevels = [
+    '/../Summer12_V7_DATA/Summer12_V7_DATA_L1FastJet_AK5PF.txt'
+    '/../Summer12_V7_DATA/Summer12_V7_DATA_L2Relative_AK5PF.txt'
+    '/../Summer12_V7_DATA/Summer12_V7_DATA_L3Absolute_AK5PF.txt'
+    '/../Summer12_V7_DATA/Summer12_V7_DATA_L2L3Residual_AK5PF.txt'
+]
+
 # Register fileservice for output file
-process.aod2nanoaod = cms.EDAnalyzer("AOD2NanoAOD", isData = cms.bool(True))
+process.aod2nanoaod = cms.EDAnalyzer("AOD2NanoAOD", 
+        jecPayloadNames = cms.vstring( jecLevels ),
+        jecUncName = cms.string('/../Summer12_V7_DATA/Summer12_V7_DATA_Uncertainty_AK5PF.txt'),
+        isData = cms.bool(False))
+
 process.TFileService = cms.Service(
     "TFileService", fileName=cms.string("output.root"))
 

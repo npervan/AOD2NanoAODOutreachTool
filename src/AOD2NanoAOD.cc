@@ -303,12 +303,13 @@ private:
   int value_gen_status[max_gen];
 };
 
-AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig)
-  : isData(iConfig.getParameter<bool>("isData")),
-  jecPayloadNames_( iConfig.getParameter<std::vector<std::string> >("jecPayloadNames") ), // JEC level payloads                            
-  jecUncName_( iConfig.getParameter<std::string>("jecUncName") )                          // JEC uncertainties                               
+AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig) :
+  isData (iConfig.getParameter<bool>("isData")),
+  jecPayloadNames_ ( iConfig.getParameter<std::vector<std::string> >("jecPayloadNames") ), // JEC level payloads                     
+  jecUncName_ ( iConfig.getParameter<std::string>("jecUncName") )                          // JEC uncertainties                               
   {
-   //Get the factorized jet corrector parameters.                                                                                                    
+
+  //Get the factorized jet corrector parameters.                                                                                               
   std::vector<JetCorrectorParameters> vPar;
   for ( std::vector<std::string>::const_iterator payloadBegin = jecPayloadNames_.begin(),
     payloadEnd = jecPayloadNames_.end(), ipayload = payloadBegin; ipayload != payloadEnd; ++ipayload ) {
@@ -438,16 +439,16 @@ AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig)
   tree->Branch("Jet_puId", value_jet_puid, "Jet_puId[nJet]/O");
   tree->Branch("Jet_btag", value_jet_btag, "Jet_btag[nJet]/F");
 
-  // Corrected Jets                                                                                                                                       
-  tree->Branch("nCorrJet", &value_corr_jet_n, "ncJet/i");
-  tree->Branch("CorrJet_pt", value_corr_jet_pt, "cJet_pt[nJet]/F");
-  tree->Branch("CorrJet_ptUp", value_corr_jet_ptUp, "cJet_pt[nJet]/F");
-  tree->Branch("CorrJet_ptDown", value_corr_jet_ptDown, "cJet_pt[nJet]/F");
-  tree->Branch("CorrJet_eta", value_corr_jet_eta, "cJet_eta[nJet]/F");
-  tree->Branch("CorrJet_phi", value_corr_jet_phi, "cJet_phi[nJet]/F");
-  tree->Branch("CorrJet_mass", value_corr_jet_mass, "cJet_mass[nJet]/F");
-  tree->Branch("CorrJet_puId", value_corr_jet_puid, "cJet_puId[nJet]/O");
-  tree->Branch("CorrJet_btag", value_corr_jet_btag, "cJet_btag[nJet]/F");
+  // Corrected Jets                                                                                                                        
+  tree->Branch("nCorrJet", &value_corr_jet_n, "nCorrJet/i");
+  tree->Branch("CorrJet_pt", value_corr_jet_pt, "CorrJet_pt[nJet]/F");
+  tree->Branch("CorrJet_ptUp", value_corr_jet_ptUp, "CorrJet_pt[nJet]/F");
+  tree->Branch("CorrJet_ptDown", value_corr_jet_ptDown, "CorrJet_pt[nJet]/F");
+  tree->Branch("CorrJet_eta", value_corr_jet_eta, "CorrJet_eta[nJet]/F");
+  tree->Branch("CorrJet_phi", value_corr_jet_phi, "CorrJet_phi[nJet]/F");
+  tree->Branch("CorrJet_mass", value_corr_jet_mass, "CorrJet_mass[nJet]/F");
+  tree->Branch("CorrJet_puId", value_corr_jet_puid, "CorrJet_puId[nJet]/O");
+  tree->Branch("CorrJet_btag", value_corr_jet_btag, "CorrJet_btag[nJet]/F");
 
   // Generator particles
   if (!isData) {

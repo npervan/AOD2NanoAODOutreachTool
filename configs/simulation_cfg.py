@@ -37,9 +37,9 @@ process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 process.GlobalTag.globaltag = "START53_V27::All"
 
 jecLevels = [
-    '/../Summer12_V7_MC/Summer12_V7_MC_L1FastJet_AK5PF.txt',
-    '/../Summer12_V7_MC/Summer12_V7_MC_L2Relative_AK5PF.txt',
-    '/../Summer12_V7_MC/Summer12_V7_MC_L3Absolute_AK5PF.txt'
+    'Summer12_V7_MC_L1FastJet_AK5PF.txt',
+    'Summer12_V7_MC_L2Relative_AK5PF.txt',
+    'Summer12_V7_MC_L3Absolute_AK5PF.txt'
 ]
 
 # Number of events to be skipped (0 by default)
@@ -58,7 +58,7 @@ process.aod2nanoaod = cms.EDAnalyzer("AOD2NanoAOD",
         #corrected_jets = cms.InputTag('ak5PFCorrectedJets'),
         #smeared_jets = cms.InputTag('ak5PFCorrectedJetsSmeared'), 
         jecPayloadNames = cms.vstring( jecLevels ),
-        jecUncName = cms.string('/../Summer12_V7_MC/Summer12_V7_MC_Uncertainty_AK5PF.txt'),
+        jecUncName = cms.string('Summer12_V7_MC_Uncertainty_AK5PF.txt'),
         isData = cms.bool(False)
         )
 process.TFileService = cms.Service(

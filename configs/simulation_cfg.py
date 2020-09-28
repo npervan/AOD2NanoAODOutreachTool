@@ -29,6 +29,7 @@ process.maxEvents = cms.untracked.PSet(input=cms.untracked.int32(-1))
 
 process.source = cms.Source("PoolSource",
         fileNames = cms.untracked.vstring('root://eospublic.cern.ch//eos/opendata/cms/MonteCarlo2012/Summer12_DR53X/TTbar_8TeV-Madspin_aMCatNLO-herwig/AODSIM/PU_S10_START53_V19-v2/00000/000A9D3F-CE4C-E311-84F8-001E673969D2.root'))
+#        fileNames = cms.untracked.vstring('root://eospublic.cern.ch//eos/opendata/cms/MonteCarlo2012/Summer12_DR53X/DY2JetsToLL_M-50_TuneZ2Star_8TeV-madgraph/AODSIM/PU_RD1_START53_V7N-v1/00000/000EFD4D-E1D0-E311-885A-0017A4770430.root'))
 process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(20))
 
 # Set global tag
@@ -36,11 +37,15 @@ process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(20))
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 process.GlobalTag.globaltag = "START53_V27::All"
 
-jecLevels = [
-    'Summer12_V7_MC_L1FastJet_AK5PF.txt',
-    'Summer12_V7_MC_L2Relative_AK5PF.txt',
-    'Summer12_V7_MC_L3Absolute_AK5PF.txt'
-]
+#jecLevels = [
+#    'Summer12_V7_MC_L1FastJet_AK5PF.txt',
+#    'Summer12_V7_MC_L2Relative_AK5PF.txt',
+#    'Summer12_V7_MC_L3Absolute_AK5PF.txt'
+#]
+
+#jecL1f = 'Summer12_V7_MC_L1FastJet_AK5PF.txt'
+#jecL2f = 'Summer12_V7_MC_L2Relative_AK5PF.txt'
+#jecL3f = 'Summer12_V7_MC_L3Absolute_AK5PF.txt'
 
 # Number of events to be skipped (0 by default)
 process.source.skipEvents = cms.untracked.uint32(0)
@@ -57,8 +62,11 @@ process.aod2nanoaod = cms.EDAnalyzer("AOD2NanoAOD",
         #plain_jets = cms.InputTag('slimmedJets'),
         #corrected_jets = cms.InputTag('ak5PFCorrectedJets'),
         #smeared_jets = cms.InputTag('ak5PFCorrectedJetsSmeared'), 
-        jecPayloadNames = cms.vstring( jecLevels ),
-        jecUncName = cms.string('Summer12_V7_MC_Uncertainty_AK5PF.txt'),
+        #jecPayloadNames = cms.vstring( jecLevels ),
+        jecL1Name = cms.FileInPath('workspace/AOD2NanoAOD/Summer12_V7_MC/Summer12_V7_MC_L1FastJet_AK5PFchs.txt'),
+        jecL2Name = cms.FileInPath('workspace/AOD2NanoAOD/Summer12_V7_MC/Summer12_V7_MC_L2Relative_AK5PFchs.txt'),
+        jecL3Name = cms.FileInPath('workspace/AOD2NanoAOD/Summer12_V7_MC/Summer12_V7_MC_L3Absolute_AK5PFchs.txt'),
+        jecUncName = cms.FileInPath('workspace/AOD2NanoAOD/Summer12_V7_MC/Summer12_V7_MC_Uncertainty_AK5PFchs.txt'),
         isData = cms.bool(False)
         )
 process.TFileService = cms.Service(

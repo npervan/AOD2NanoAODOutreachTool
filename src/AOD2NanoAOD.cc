@@ -139,6 +139,9 @@ private:
   bool providesGoodLumisection(const edm::Event &iEvent);
   bool isData;
   std::vector<std::string> jecPayloadNames_;
+  std::string              jecL1_;
+  std::string              jecL2_;
+  std::string              jecL3_;
   std::string              jecUncName_;
   boost::shared_ptr<JetCorrectionUncertainty> jecUnc_;
   boost::shared_ptr<FactorizedJetCorrector> jec_;
@@ -279,18 +282,12 @@ private:
   float value_jet_mass[max_jet];
   bool value_jet_puid[max_jet];
   float value_jet_btag[max_jet];
-
-  // Corrected + Smeared Jets                                                                                                                             
-  const static int max_corr_jet = 1000;
-  int value_corr_jet_n;
   float value_corr_jet_pt[max_jet];
   float value_corr_jet_ptUp[max_jet];
   float value_corr_jet_ptDown[max_jet];
-  float value_corr_jet_eta[max_jet];
-  float value_corr_jet_phi[max_jet];
   float value_corr_jet_mass[max_jet];
-  bool value_corr_jet_puid[max_jet];
-  float value_corr_jet_btag[max_jet];
+  float value_corr_jet_massUp[max_jet];
+  float value_corr_jet_massDown[max_jet];
 
   // Generator particles
   const static int max_gen = 1000;
@@ -303,13 +300,18 @@ private:
   int value_gen_status[max_gen];
 };
 
-AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig) :
-  isData (iConfig.getParameter<bool>("isData")),
-  jecPayloadNames_ ( iConfig.getParameter<std::vector<std::string> >("jecPayloadNames") ), // JEC level payloads                     
-  jecUncName_ ( iConfig.getParameter<std::string>("jecUncName") )                          // JEC uncertainties                               
-  {
+AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig){
+  isData = iConfig.getParameter<bool>("isData");
+  jecL1_ = iConfig.getParameter<edm::FileInPath>("jecL1Name").fullPath(); // JEC level payloads                     
+  jecL2_ = iConfig.getParameter<edm::FileInPath>("jecL2Name").fullPath(); // JEC level payloads                     
+  jecL3_ = iConfig.getParameter<edm::FileInPath>("jecL3Name").fullPath(); // JEC level payloads                     
+  jecUncName_ = iConfig.getParameter<edm::FileInPath>("jecUncName").fullPath();      // JEC uncertainties                               
 
-  //Get the factorized jet corrector parameters.                                                                                               
+  //Get the factorized jet corrector parameters.
+  jecPayloadNames_.push_back(jecL1_);
+  jecPayloadNames_.push_back(jecL2_);
+  jecPayloadNames_.push_back(jecL3_);
+    
   std::vector<JetCorrectorParameters> vPar;
   for ( std::vector<std::string>::const_iterator payloadBegin = jecPayloadNames_.begin(),
     payloadEnd = jecPayloadNames_.end(), ipayload = payloadBegin; ipayload != payloadEnd; ++ipayload ) {
@@ -438,17 +440,12 @@ AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig) :
   tree->Branch("Jet_mass", value_jet_mass, "Jet_mass[nJet]/F");
   tree->Branch("Jet_puId", value_jet_puid, "Jet_puId[nJet]/O");
   tree->Branch("Jet_btag", value_jet_btag, "Jet_btag[nJet]/F");
-
-  // Corrected Jets                                                                                                                        
-  tree->Branch("nCorrJet", &value_corr_jet_n, "nCorrJet/i");
   tree->Branch("CorrJet_pt", value_corr_jet_pt, "CorrJet_pt[nJet]/F");
-  tree->Branch("CorrJet_ptUp", value_corr_jet_ptUp, "CorrJet_pt[nJet]/F");
-  tree->Branch("CorrJet_ptDown", value_corr_jet_ptDown, "CorrJet_pt[nJet]/F");
-  tree->Branch("CorrJet_eta", value_corr_jet_eta, "CorrJet_eta[nJet]/F");
-  tree->Branch("CorrJet_phi", value_corr_jet_phi, "CorrJet_phi[nJet]/F");
+  tree->Branch("CorrJet_ptUp", value_corr_jet_ptUp, "CorrJet_ptUp[nJet]/F");
+  tree->Branch("CorrJet_ptDown", value_corr_jet_ptDown, "CorrJet_ptDown[nJet]/F");
   tree->Branch("CorrJet_mass", value_corr_jet_mass, "CorrJet_mass[nJet]/F");
-  tree->Branch("CorrJet_puId", value_corr_jet_puid, "CorrJet_puId[nJet]/O");
-  tree->Branch("CorrJet_btag", value_corr_jet_btag, "CorrJet_btag[nJet]/F");
+  tree->Branch("CorrJet_massUp", value_corr_jet_massUp, "CorrJet_massUp[nJet]/F");
+  tree->Branch("CorrJet_massDown", value_corr_jet_massDown, "CorrJet_massDown[nJet]/F");
 
   // Generator particles
   if (!isData) {
@@ -746,7 +743,7 @@ void AOD2NanoAOD::analyze(const edm::Event &iEvent,
   Handle<PhotonCollection> photons;
   iEvent.getByLabel(InputTag("photons"), photons);
   Handle<double> rhoHandle;
-  iEvent.getByLabel(InputTag("fixedGridRhoAll"), rhoHandle);
+  iEvent.getByLabel(InputTag("fixedGridRhoFastjetAll"), rhoHandle);
   double rhoIso = std::max(*(rhoHandle.product()), 0.0);
 
   value_ph_n = 0;
@@ -888,10 +885,33 @@ void AOD2NanoAOD::analyze(const edm::Event &iEvent,
   for (auto it = jets->begin(); it != jets->end(); it++) {
     if (it->pt() > jet_min_pt) {
       selectedJets.emplace_back(*it);
+      reco::Candidate::LorentzVector uncorrJet;
+      uncorrJet = it->p4();
+      jec_->setJetEta( uncorrJet.eta() );
+      jec_->setJetPt ( uncorrJet.pt() );
+      jec_->setJetE  ( uncorrJet.energy() );
+      jec_->setJetA  ( it->jetArea() );
+      jec_->setRho   ( *(rhoHandle.product()) );
+      jec_->setNPV   ( vertices->size() );
+      double corr = jec_->getCorrection();
+      // Access the "scale up" uncertainty (+1)                                                                                             
+      jecUnc_->setJetEta( uncorrJet.eta() );
+      jecUnc_->setJetPt( corr * uncorrJet.pt() );
+      double corrUp = corr * (1 + fabs(jecUnc_->getUncertainty(1)));
+      // Access the "scale down" uncertainty (-1)                                                                                             
+      jecUnc_->setJetEta( uncorrJet.eta() );
+      jecUnc_->setJetPt( corr * uncorrJet.pt() );
+      double corrDown = corr * ( 1 - fabs(jecUnc_->getUncertainty(-1)) );
       value_jet_pt[value_jet_n] = it->pt();
       value_jet_eta[value_jet_n] = it->eta();
       value_jet_phi[value_jet_n] = it->phi();
       value_jet_mass[value_jet_n] = it->mass();
+      value_corr_jet_pt[value_jet_n] = corr * uncorrJet.pt();
+      value_corr_jet_ptUp[value_jet_n] = corrUp * uncorrJet.pt();
+      value_corr_jet_ptDown[value_jet_n] = corrDown * uncorrJet.pt();
+      value_corr_jet_mass[value_jet_n] = corr * uncorrJet.mass();
+      value_corr_jet_massUp[value_jet_n] = corrUp * uncorrJet.mass();
+      value_corr_jet_massDown[value_jet_n] = corrDown * uncorrJet.mass();
       //value_jet_puid[value_jet_n] = it->emEnergyFraction() > 0.01 && it->n90() > 1;
       value_jet_btag[value_jet_n] = btags->operator[](it - jets->begin()).second;
       value_jet_n++;
@@ -903,45 +923,49 @@ void AOD2NanoAOD::analyze(const edm::Event &iEvent,
   //iEvent.getByLabel(InputTag("combinedSecondaryVertexBJetTags"), btags);
   // Make the FactorizedJetCorrector and Uncertainty
   //const float jet_min_pt = 15;
-  value_corr_jet_n = 0;
-  std::vector<PFJet> selectedCorrJets;
-  for (auto it = jets->begin(); it != jets->end(); it++) {
-    reco::Candidate::LorentzVector uncorrJet;
-    pat::Jet const * pJet = dynamic_cast<pat::Jet const *>( &*it );
-    if ( pJet != 0 ) {
-      uncorrJet = pJet->correctedP4(0);
-    } 
-    else {
-      uncorrJet = it->p4();
-    }
-    jec_->setJetEta( uncorrJet.eta() );
-    jec_->setJetPt ( uncorrJet.pt() );
-    jec_->setJetE  ( uncorrJet.energy() );
-    jec_->setJetA  ( it->jetArea() );
-    jec_->setRho   ( *(rhoHandle.product()) );
-    jec_->setNPV   ( vertices->size() );
-    double corr = jec_->getCorrection();
-    // Access the "scale up" uncertainty (+1)
-    jecUnc_->setJetEta( uncorrJet.eta() );
-    jecUnc_->setJetPt( corr * uncorrJet.pt() );
-    double corrUp = corr * (1 + fabs(jecUnc_->getUncertainty(1)));
-    // Access the "scale down" uncertainty (-1)
-    jecUnc_->setJetEta( uncorrJet.eta() );
-    jecUnc_->setJetPt( corr * uncorrJet.pt() );
-    double corrDown = corr * ( 1 - fabs(jecUnc_->getUncertainty(-1)) );
-    if (it->pt() > jet_min_pt) {
-      selectedCorrJets.emplace_back(*it);
-      value_corr_jet_pt[value_jet_n] = corr * uncorrJet.pt();
-      value_corr_jet_ptUp[value_jet_n] = corrUp * uncorrJet.pt();
-      value_corr_jet_ptDown[value_jet_n] = corrDown * uncorrJet.pt();
-      value_corr_jet_eta[value_jet_n] = uncorrJet.eta();
-      value_corr_jet_phi[value_jet_n] = uncorrJet.phi();
-      value_corr_jet_mass[value_jet_n] = uncorrJet.mass();
-      //value_corr_jet_puid[value_jet_n] = it->emEnergyFraction() > 0.01 && it->n90() > 1;
-      value_corr_jet_btag[value_jet_n] = btags->operator[](it - jets->begin()).second;
-      value_corr_jet_n++;
-    }
-  }
+  //  value_corr_jet_n = 0;
+  //std::vector<PFJet> selectedCorrJets;
+  //for (auto it = jets->begin(); it != jets->end(); it++) {
+  //  reco::Candidate::LorentzVector uncorrJet;
+  //  pat::Jet const * pJet = dynamic_cast<pat::Jet const *>( &*it );
+  //  if ( pJet != 0 ) {
+  //    //uncorrJet = pJet->correctedP4(0);
+  //    std::cout << "pat jet pass" << endl;
+  //    uncorrJet = it->p4();
+  //  } 
+  //  else {
+  //    uncorrJet = it->p4();
+  //  }
+  //  jec_->setJetEta( uncorrJet.eta() );
+  //  jec_->setJetPt ( uncorrJet.pt() );
+  //  jec_->setJetE  ( uncorrJet.energy() );
+  //  jec_->setJetA  ( it->jetArea() );
+  //  jec_->setRho   ( *(rhoHandle.product()) );
+  //  jec_->setNPV   ( vertices->size() );
+  //  double corr = jec_->getCorrection();
+  //  // Access the "scale up" uncertainty (+1)
+  //  jecUnc_->setJetEta( uncorrJet.eta() );
+  //  jecUnc_->setJetPt( corr * uncorrJet.pt() );
+  //  double corrUp = corr * (1 + fabs(jecUnc_->getUncertainty(1)));
+  //  // Access the "scale down" uncertainty (-1)
+  //  jecUnc_->setJetEta( uncorrJet.eta() );
+  //  jecUnc_->setJetPt( corr * uncorrJet.pt() );
+  //  double corrDown = corr * ( 1 - fabs(jecUnc_->getUncertainty(-1)) );
+  //  if (it->pt() > jet_min_pt) {
+  //    selectedCorrJets.emplace_back(*it);
+  //    value_corr_jet_pt[value_jet_n] = corr * uncorrJet.pt();
+  //    std::cout << uncorrJet.pt() << " " <<it->jetArea() << " " <<*(rhoHandle.product())<<  " " << corr << endl;
+  //    std::cout << corr * uncorrJet.pt() << endl;
+  //    value_corr_jet_ptUp[value_jet_n] = corrUp * uncorrJet.pt();
+  //    value_corr_jet_ptDown[value_jet_n] = corrDown * uncorrJet.pt();
+  //    value_corr_jet_eta[value_jet_n] = uncorrJet.eta();
+  //   value_corr_jet_phi[value_jet_n] = uncorrJet.phi();
+  //   value_corr_jet_mass[value_jet_n] = uncorrJet.mass();
+  //    //value_corr_jet_puid[value_jet_n] = it->emEnergyFraction() > 0.01 && it->n90() > 1;
+  //   value_corr_jet_btag[value_jet_n] = btags->operator[](it - jets->begin()).second;
+  //    value_corr_jet_n++;
+  //  }
+  //}
 
   // Generator particles
   if (!isData) {
@@ -1055,10 +1079,12 @@ void AOD2NanoAOD::analyze(const edm::Event &iEvent,
 
   // Fill event
   tree->Fill();
+  
 }
 
 void AOD2NanoAOD::beginJob() {}
 
-void AOD2NanoAOD::endJob() {}
+void AOD2NanoAOD::endJob() {
+}
 
 DEFINE_FWK_MODULE(AOD2NanoAOD);

@@ -306,19 +306,19 @@ AOD2NanoAOD::AOD2NanoAOD(const edm::ParameterSet &iConfig){
   jecL1_ = iConfig.getParameter<edm::FileInPath>("jecL1Name").fullPath(); // JEC level payloads                     
   jecL2_ = iConfig.getParameter<edm::FileInPath>("jecL2Name").fullPath(); // JEC level payloads                     
   jecL3_ = iConfig.getParameter<edm::FileInPath>("jecL3Name").fullPath(); // JEC level payloads                     
-  if(isData) std::cout << "l2l3" << std::endl; jecL2L3_ = iConfig.getParameter<edm::FileInPath>("jecL2L3Name").fullPath(); // JEC level payloads 
+  if(isData) jecL2L3_ = iConfig.getParameter<edm::FileInPath>("jecL2L3Name").fullPath(); // JEC level payloads 
   jecUncName_ = iConfig.getParameter<edm::FileInPath>("jecUncName").fullPath();      // JEC uncertainties                               
 
   //Get the factorized jet corrector parameters.
   jecPayloadNames_.push_back(jecL1_);
   jecPayloadNames_.push_back(jecL2_);
   jecPayloadNames_.push_back(jecL3_);
-  if(isData) std::cout << "L1L3" << std::endl; jecPayloadNames_.push_back(jecL2L3_);
+  if(isData) jecPayloadNames_.push_back(jecL2L3_);
     
   std::vector<JetCorrectorParameters> vPar;
   for ( std::vector<std::string>::const_iterator payloadBegin = jecPayloadNames_.begin(),
     payloadEnd = jecPayloadNames_.end(), ipayload = payloadBegin; ipayload != payloadEnd; ++ipayload ) {
-    std::cout << *ipayload << std::endl;
+    //std::cout << *ipayload << std::endl;
     JetCorrectorParameters pars(*ipayload);
     vPar.push_back(pars);
     }

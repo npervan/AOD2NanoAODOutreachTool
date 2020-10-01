@@ -98,10 +98,10 @@ process.out = cms.OutputModule("PoolOutputModule",
 
 # Register fileservice for output file
 process.aod2nanoaod = cms.EDAnalyzer("AOD2NanoAOD", 
-        jecL1Name = cms.FileInPath('workspace/AOD2NanoAODOutreachTool/Summer12_V7_MC/Summer12_V7_MC_L1FastJet_AK5PFchs.txt'),
-        jecL2Name = cms.FileInPath('workspace/AOD2NanoAODOutreachTool/Summer12_V7_MC/Summer12_V7_MC_L2Relative_AK5PFchs.txt'),
-        jecL3Name = cms.FileInPath('workspace/AOD2NanoAODOutreachTool/Summer12_V7_MC/Summer12_V7_MC_L3Absolute_AK5PFchs.txt'),
-        jecUncName = cms.FileInPath('workspace/AOD2NanoAODOutreachTool/Summer12_V7_MC/Summer12_V7_MC_Uncertainty_AK5PFchs.txt'),
+        #jecL1Name = cms.FileInPath('workspace/AOD2NanoAODOutreachTool/Summer12_V7_MC/Summer12_V7_MC_L1FastJet_AK5PFchs.txt'),
+        #jecL2Name = cms.FileInPath('workspace/AOD2NanoAODOutreachTool/Summer12_V7_MC/Summer12_V7_MC_L2Relative_AK5PFchs.txt'),
+        #jecL3Name = cms.FileInPath('workspace/AOD2NanoAODOutreachTool/Summer12_V7_MC/Summer12_V7_MC_L3Absolute_AK5PFchs.txt'),
+        #jecUncName = cms.FileInPath('workspace/AOD2NanoAODOutreachTool/Summer12_V7_MC/Summer12_V7_MC_Uncertainty_AK5PFchs.txt'),
         isData = cms.bool(False)
         )
 process.TFileService = cms.Service(

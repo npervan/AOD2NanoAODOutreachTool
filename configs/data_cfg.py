@@ -78,13 +78,15 @@ process.goodOfflinePrimaryVertices = cms.EDFilter(
     )
 
 process.ak5PFJets.doAreaFastjet = True
+removeMCMatchingPF2PAT( process )
+runOnData(process)
 addPfMET(process, 'PF')
 
 addJetCollection(process,cms.InputTag('ak5PFJets'),
                  'AK5', 'PFCorr',
                  doJTA        = True,
                  doBTagging   = True,
-                 jetCorrLabel = ('AK5PF', cms.vstring(['L1FastJet','L2Relative','L3Absolute'])),#'L2L3Residual'])),          
+                 jetCorrLabel = ('AK5PF', cms.vstring(['L1FastJet','L2Relative','L3Absolute','L2L3Residual'])),          
                  doType1MET   = True,
                  doL1Cleaning = True,
                  doL1Counters = False,

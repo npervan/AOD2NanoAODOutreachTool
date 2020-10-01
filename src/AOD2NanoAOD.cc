@@ -290,6 +290,14 @@ private:
   float value_corr_jet_massUp[max_jet];
   float value_corr_jet_massDown[max_jet];
 
+  // PatJets                                                                                                                          
+  const static int max_pjet = 1000;
+  int value_pjet_n;
+  float value_pjet_pt[max_pjet];
+  float value_pjet_eta[max_pjet];
+  float value_pjet_phi[max_pjet];
+  float value_pjet_mass[max_pjet];
+
   // Generator particles
   const static int max_gen = 1000;
   UInt_t value_gen_n;
@@ -921,6 +929,23 @@ void AOD2NanoAOD::analyze(const edm::Event &iEvent,
       value_jet_n++;
     }
   }
+
+  //Method 2 using PAT Jets
+  edm::Handle< std::vector< pat::Jet > > ak5_handle;
+  iEvent.getByLabel("selectedPatJetsAK5PFCorr", ak5_handle);
+  std::vector< pat::Jet > patjets(ak5_handle->begin(), ak5_handle->end());
+
+  value_pjet_n = 0;
+  std::vector<pat::Jet> selectedPatJets;
+  for (auto it = patjets.begin(); it != patjets.end(); ++it) {
+    if (it->pt() > jet_min_pt) {
+      value_pjet_pt[value_pjet_n] = it->pt();
+      value_pjet_eta[value_pjet_n] = it->eta();
+      value_pjet_phi[value_pjet_n] = it->phi();
+      value_pjet_mass[value_pjet_n] = it->mass();
+    } 
+  }
+    
 
   // Generator particles
   if (!isData) {

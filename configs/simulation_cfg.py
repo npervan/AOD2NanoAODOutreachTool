@@ -1,5 +1,6 @@
 import FWCore.ParameterSet.Config as cms
 import FWCore.Utilities.FileUtils as FileUtils
+from PhysicsTools.PatAlgos.patTemplate_cfg import *
 import os 
 
 relBase = os.environ['CMSSW_BASE']
@@ -35,11 +36,64 @@ process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(20))
 
 # Set global tag
 # We don't have set the global tag for the educational samples. This simplifies running the code since we don't have to access the database.
-#process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
-#process.GlobalTag.globaltag = "START53_V27::All"
+process.load('Configuration.StandardSequences.Services_cff')
+process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
+process.GlobalTag.globaltag = "START53_V27::All"
+
+# Load PAT config                                                                                                                     
+process.load("RecoTauTag.Configuration.RecoPFTauTag_cff") # re-run tau discriminators (new version)                               
+process.load("PhysicsTools.PatAlgos.patSequences_cff")
+process.load('Configuration.StandardSequences.Reconstruction_cff')
+process.load('RecoJets.Configuration.RecoPFJets_cff')
+process.load('RecoJets.Configuration.RecoJets_cff')
+process.load('RecoJets.JetProducers.TrackJetParameters_cfi')
+process.load('JetMETCorrections.Configuration.DefaultJEC_cff')
+
+# Configure PAT to use PF2PAT instead of AOD sources                                                                                 
+# this function will modify the PAT sequences.                                                                                              
+from PhysicsTools.PatAlgos.tools.pfTools import *
+from PhysicsTools.PatAlgos.tools.coreTools import *
+from PhysicsTools.PatAlgos.tools.metTools import *
+from PhysicsTools.PatAlgos.tools.jetTools import *
+from PhysicsTools.PatAlgos.tools.coreTools import *
+from PhysicsTools.SelectorUtils.pvSelector_cfi import pvSelector
+
+process.goodOfflinePrimaryVertices = cms.EDFilter(
+    "VertexSelector",
+    filter = cms.bool(False),
+    src = cms.InputTag("offlinePrimaryVertices"),
+    cut = cms.string("!isFake && ndof > 4 && abs(z) <= 24 && position.rho < 2")
+    )
+
+process.ak5PFJets.doAreaFastjet = True
+addPfMET(process, 'PF')
+
+addJetCollection(process,cms.InputTag('ak5PFJets'),
+                 'AK5', 'PFCorr',
+                 doJTA        = True,
+                 doBTagging   = True,
+                 jetCorrLabel = ('AK5PF', cms.vstring(['L1FastJet','L2Relative','L3Absolute'])),#'L2L3Residual'])),          
+                 doType1MET   = True,
+                 doL1Cleaning = True,
+                 doL1Counters = False,
+                 doJetID      = True,
+                 jetIdLabel   = "ak5",
+                 #outputModules= ['out']                                                                                   
+                 )
+
+from RecoMET.METFilters.trackingFailureFilter_cfi import trackingFailureFilter
+process.trackingFailureFilter = trackingFailureFilter.clone()
+process.trackingFailureFilter.VertexSource = cms.InputTag('goodOfflinePrimaryVertices')
 
 # Number of events to be skipped (0 by default)
 process.source.skipEvents = cms.untracked.uint32(0)
+
+# Output Module Configuration (expects a path 'p')
+#process.out = cms.OutputModule("PoolOutputModule",
+#        fileName = cms.untracked.string('jet_corr_name.root'),
+        #SelectEvents = cms.untracked.PSet( SelectEvents = cms.vstring('p') ),
+#        outputCommands = cms.untracked.vstring('keep *')
+#        )
 
 # Register fileservice for output file
 process.aod2nanoaod = cms.EDAnalyzer("AOD2NanoAOD", 
@@ -53,5 +107,6 @@ process.aod2nanoaod = cms.EDAnalyzer("AOD2NanoAOD",
 process.TFileService = cms.Service(
     "TFileService", fileName=cms.string("output.root"))
 
-process.p = cms.Path(process.aod2nanoaod)
+process.p = cms.Path(process.patDefaultSequence * process.aod2nanoaod)
+#process.ep = cms.EndPath(process.out)
 

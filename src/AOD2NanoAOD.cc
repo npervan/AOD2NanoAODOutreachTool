@@ -878,6 +878,15 @@ void AOD2NanoAOD::analyze(const edm::Event &iEvent,
   iEvent.getByLabel(InputTag("ak5PFJets"), jets);
   Handle<JetTagCollection> btags;
   iEvent.getByLabel(InputTag("combinedSecondaryVertexBJetTags"), btags);
+  
+  edm::Handle< std::vector< pat::Jet > > ak5_handle;
+  iEvent.getByLabel(InputTag("selectedPatJetsAK5PFCorr"), ak5_handle);
+  std::vector< pat::Jet > patjets(ak5_handle->begin(), ak5_handle->end());
+  auto i_ak5jet = patjets.begin();
+  auto p4 = i_ak5jet->p4();
+  std::cout << p4.Pt() << endl;
+  std::cout << i_ak5jet->jecFactor(0) << endl;
+
 
   const float jet_min_pt = 15;
   value_jet_n = 0;
